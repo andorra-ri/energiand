@@ -7,21 +7,22 @@ library(anytime)
 library(readxl)
 library(leaflet)
 
-epw_escaldes <- read_epw("../data/42.51_1.53.epw")
-# epw file imported from PVGIS5. I get the TMY 2006-2015 as there are some errors in 2007-2016 Relative humidity
+# epw file imported from PVGIS5 (https://re.jrc.ec.europa.eu/pvg_tools/en/#TMY) 
+# I get the TMY 2006-2015 as there are some errors in 2007-2016 Relative humidity
 # I did some manual modifications in the original file: add location and add S after SAVING (line 5)
-epw_escaldes$period(1, start_day_of_week = "Sunday") #change 1st Weekday
+epw_escaldes <- read_epw("../data/tmy_era_42.509_1.535_2006_2015.epw")
+epw_escaldes$period(1, start_day_of_week = "Sunday") # Change 1st weekday
 
 # Show some epw file information
 epw_escaldes$location()$city
 epw_escaldes$location()$country
 print(epw_escaldes)
 ## show location in Leaflet
-label <- paste(epw_escaldes$location()$longitude,';', epw_escaldes$location()$latitude, ";", epw_escaldes$elevation,'m')
+label <- paste(epw_escaldes$location()$longitude,';', epw_escaldes$location()$latitude, ";", epw_escaldes$location()$elevation,'m')
 leaflet() %>% addTiles() %>%
   addMarkers(lng=epw_escaldes$location()$longitude, lat=epw_escaldes$location()$latitude, label=label)
 
-## Get epw variables in a dataframe 
+# Get epw variables in a dataframe 
 df_escaldes <- epw_escaldes$data()
 
 ## Some descriptive statistics
