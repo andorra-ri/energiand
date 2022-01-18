@@ -2,7 +2,6 @@ library(eplusr) # https://rdrr.io/cran/eplusr/man/Epw.html
 library(ggplot2)
 library(grid)
 library(gridExtra)
-library(plotly)
 library(readxl)
 library(leaflet)
 
@@ -25,11 +24,12 @@ leaflet() %>%
   addTiles() %>%
   addMarkers(lng = epw$location()$longitude, lat = epw$location()$latitude, label = label)
 
-# Get epw variables in a dataframe
+# Load epw variables in a dataframe
 df_data <- epw$data()
 
 # Some descriptive statistics
 summary(df_data$dry_bulb_temperature)
+summary(df_data$global_horizontal_radiation)
 
 # Create function to plot all the variables in a grid ---------------------------
 plot_epw_variables <- function(df) {
@@ -57,16 +57,20 @@ for (i in 1:12) {
   df_temperature[i, 2] <- monthly_temp
   df_temperature[i, 3] <- df$year[i]
 }
-write.csv(x = df_temperature, file = paste0("../output/mean_temp_", epw$location()$latitude, "_", epw$location()$longitude, ".csv"), row.names = FALSE)
+View(df_temperature)
 
 # Monthly correction to the final epw file using ACDA (http://www.acda.ad/) data ---------------------------
 df_data_corrected <- df_data
 
 # Monthly constants based on mean temperature comparison (PVGIS-ACDA)
-acda_correction <- read_xlsx("../output/mean_temp_comparison.xlsx") # This excel needs to be constructed manually using ACDA values for each month and the previous generated .csv
+acda_correction <- data.frame(
+  "mean_temperature_acda" = c(-0.9, -0.7, 1.5, 2.7, 6.6, 10.6, 13.7, 13.5, 10.3, 6.7, 2.3, 0.1), # This column needs to be constructed manually using ACDA values for each month
+  "correction" = NA)
+acda_correction$correction <- df_temperature$mean_temperature - acda_correction$mean_temperature_acda
+
 for (i in 1:12) {
   df <- df_data[month == i]
-  df_data_corrected[month == i]$dry_bulb_temperature <- df_data_corrected[month == i]$dry_bulb_temperature - as.numeric(acda_correction[i, "correction"])
+  df_data_corrected[month == i]$dry_bulb_temperature <- df_data_corrected[month == i]$dry_bulb_temperature - acda_correction[i, "correction"]
 }
 
 # Check the corrected df
@@ -75,4 +79,4 @@ plot_epw_variables(df_data_corrected)
 
 # Save the corrected epw file ---------------------------
 epw$set(df_data_corrected)
-epw$save(paste0("../output/", epw$location()$latitude, "_", epw$location()$longitude, ".epw"))
+epw$save(paste0("../output/", "tmy_", epw$location()$latitude, "_", epw$location()$longitude, ".epw"))
