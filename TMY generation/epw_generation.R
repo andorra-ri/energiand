@@ -7,25 +7,29 @@ library(readxl)
 library(leaflet)
 
 # epw file imported from PVGIS5 (https://re.jrc.ec.europa.eu/pvg_tools/en/#TMY)
-# I did some manual modifications in the original file: add location and add S after SAVING (line 5)
-epw_escaldes <- read_epw("../data/tmy_42.549_1.698_2007_2016.epw")
-#epw_escaldes$period(1, start_day_of_week = "Thursday") # Change 1st weekday
+# I did a manual modifications in the original file (add S after SAVING (line 5))
+epw <- read_epw("../data/tmy_42.549_1.698_2007_2016.epw")
+
+# Modify location data ---------------------------
+epw$location(city = "ETR Grau Roig", state_province = "Encamp", country = "AND")
+
+# epw$period(1, start_day_of_week = "Thursday") # Change 1st weekday
 
 # Show some epw file information ---------------------------
-epw_escaldes$location()$city
-epw_escaldes$location()$country
-print(epw_escaldes)
+epw$location()$city
+epw$location()$country
+print(epw)
 # show location in Leaflet
-label <- paste(epw_escaldes$location()$longitude, ";", epw_escaldes$location()$latitude, ";", epw_escaldes$location()$elevation, "m")
+label <- paste(epw$location()$longitude, ";", epw$location()$latitude, ";", epw$location()$elevation, "m")
 leaflet() %>%
   addTiles() %>%
-  addMarkers(lng = epw_escaldes$location()$longitude, lat = epw_escaldes$location()$latitude, label = label)
+  addMarkers(lng = epw$location()$longitude, lat = epw$location()$latitude, label = label)
 
 # Get epw variables in a dataframe
-df_escaldes <- epw_escaldes$data()
+df_data <- epw$data()
 
 # Some descriptive statistics
-summary(df_escaldes$dry_bulb_temperature)
+summary(df_data$dry_bulb_temperature)
 
 # Create function to plot all the variables in a grid ---------------------------
 plot_epw_variables <- function(df) {
@@ -43,32 +47,32 @@ plot_epw_variables <- function(df) {
   grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, ncol = 2, nrow = 5)
 }
 # Plot all variables in a grid
-plot_epw_variables(df_escaldes)
+plot_epw_variables(df_data)
 
 # Calculation of mean monthly temperature to compare with ACDA ---------------------------
 df_temperature <- data.frame("month" = 1:12, "mean_temperature" = NA, "year" = NA)
 for (i in 1:12) {
-  df <- df_escaldes[month == i]
+  df <- df_data[month == i]
   monthly_temp <- mean(df$dry_bulb_temperature)
   df_temperature[i, 2] <- monthly_temp
   df_temperature[i, 3] <- df$year[i]
 }
-write.csv(x = df_temperature, file = paste0("../output/mean_temp_", epw_escaldes$location()$latitude, "_", epw_escaldes$location()$longitude, ".csv"), row.names = FALSE)
+write.csv(x = df_temperature, file = paste0("../output/mean_temp_", epw$location()$latitude, "_", epw$location()$longitude, ".csv"), row.names = FALSE)
 
 # Monthly correction to the final epw file using ACDA (http://www.acda.ad/) data ---------------------------
-df_escaldes_corrected <- df_escaldes
+df_data_corrected <- df_data
 
 # Monthly constants based on mean temperature comparison (PVGIS-ACDA)
 acda_correction <- read_xlsx("../output/mean_temp_comparison.xlsx") # This excel needs to be constructed manually using ACDA values for each month and the previous generated .csv
 for (i in 1:12) {
-  df <- df_escaldes[month == i]
-  df_escaldes_corrected[month == i]$dry_bulb_temperature <- df_escaldes_corrected[month == i]$dry_bulb_temperature - as.numeric(acda_correction[i, "correction"])
+  df <- df_data[month == i]
+  df_data_corrected[month == i]$dry_bulb_temperature <- df_data_corrected[month == i]$dry_bulb_temperature - as.numeric(acda_correction[i, "correction"])
 }
 
 # Check the corrected df
-summary(df_escaldes_corrected$dry_bulb_temperature)
-plot_epw_variables(df_escaldes_corrected)
+summary(df_data_corrected$dry_bulb_temperature)
+plot_epw_variables(df_data_corrected)
 
 # Save the corrected epw file ---------------------------
-epw_escaldes$set(df_escaldes_corrected)
-epw_escaldes$save(paste0("../output/", epw_escaldes$location()$latitude, "_", epw_escaldes$location()$longitude, ".epw"))
+epw$set(df_data_corrected)
+epw$save(paste0("../output/", epw$location()$latitude, "_", epw$location()$longitude, ".epw"))
